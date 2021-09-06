@@ -21,6 +21,7 @@ import re
 
 
 def check_tag(word, list_tags):
+    """check if the word is a tag from the tags list and return its simplified form"""
     for t in list_tags:
         if word == t:
             simple_t = re.match('(\.?[a-z]+)', t).group()
@@ -29,6 +30,7 @@ def check_tag(word, list_tags):
 
 
 def simplify_tags_sentence(s, list_tags):
+    """simplify a sentence of tags removing tags that dont belong to list_tags"""
     l = []
     for w in s.split(' '):
         b, x = check_tag(w, list_tags)
@@ -37,15 +39,17 @@ def simplify_tags_sentence(s, list_tags):
     return l
 
 def remove_stopwords_sentence(sentence):
-    # print(sentence)
+    """remove stopwords from sentence"""
     return pd.Series([word for word in sentence[0].split() if word not in stop])
 
 
 def remove_stopwords_df(df):
+    """remove stopwords from a dataframe"""
     return df.apply(remove_stopwords_sentence, axis=1)
 
 
 def stem_sentence(s):
+    """ stem sentence"""
     stemmer = EnglishStemmer()
     return pd.Series([stemmer.stem(w) for w in s if not pd.isna(w)])
 
@@ -96,39 +100,44 @@ y2 = mlb.fit_transform(y_prog[0])
 # transform the title using the pipeline
 title_proc = body_pipeline.fit_transform(df_prog.Title.to_frame())
 
-
+# apply TFIDF vectorization
 tfidf_vectorizer = TfidfVectorizer(tokenizer=lambda i:i, lowercase=False, stop_words=[''])
 X_tfidf = tfidf_vectorizer.fit_transform(title_proc)
 
+# split into train and test set
 X_train, y_train, X_test, y_test = iterative_train_test_split(X_tfidf, y2, test_size = 0.2)
 
-model = ClassifierChain(RandomForestClassifier(min_samples_split=15,n_estimators=10,
+# create the model : Classifier Chains with Random FOrest
+model = ClassifierChain(RandomForestClassifier(min_samples_split=20,n_estimators=100,
                                                n_jobs=4),order='random', random_state=1)
 
+# fit the model to the training set
 model.fit(X_train,y_train)
 
 import dill
 
-joblib.dump(model, 'C:/Users/elodi/Documents/model.pkl')
+#joblib.dump(model, 'C:/Users/elodi/Documents/model.pkl')
 
 
-
+# save the model
 with open('C:/Users/elodi/Documents/model.pkl', 'wb') as pickle_file :
     dill.dump(model, pickle_file)
 
-
+# save the pipeline
 with open('C:/Users/elodi/Documents/pipeline.pkl', 'wb') as pickle_file :
     dill.dump(body_pipeline, pickle_file)
 
+# save the vectorizer
 with open('C:/Users/elodi/Documents/vectorizer.pkl', 'wb') as vect_file:
     dill.dump(tfidf_vectorizer,vect_file)
-    
+   
+# save the MultiLabelBinarizer
 with open('C:/Users/elodi/Documents/mlb.pkl', 'wb') as mlb_file:
     dill.dump(mlb,mlb_file)
     
     
-model_load = joblib.load('C:/Users/elodi/Documents/model.pkl')
+#model_load = joblib.load('C:/Users/elodi/Documents/model.pkl')
 
-with open('C:/Users/elodi/Documents/pipeline.pkl', 'rb') as pickle_file :
-    pipeline_load  = dill.load( pickle_file)
+#with open('C:/Users/elodi/Documents/pipeline.pkl', 'rb') as pickle_file :
+    #pipeline_load  = dill.load( pickle_file)
     
