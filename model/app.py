@@ -25,6 +25,7 @@ app = Flask(__name__)
 
 
 def check_tag(word, list_tags):
+    """check if the word is a tag from the tags list and return its simplified form"""
     for t in list_tags:
         if word == t:
             simple_t = re.match('(\.?[a-z]+)', t).group()
@@ -33,6 +34,7 @@ def check_tag(word, list_tags):
 
 
 def simplify_tags_sentence(s, list_tags):
+    """simplify a sentence of tags removing tags that dont belong to list_tags"""
     l = []
     for w in s.split(' '):
         b, x = check_tag(w, list_tags)
@@ -41,16 +43,18 @@ def simplify_tags_sentence(s, list_tags):
     return l
 
 def remove_stopwords_sentence(sentence):
-    # print(sentence)
+    """remove stopwords from sentence"""
     stop = stopwords.words('English')
     return pd.Series([word for word in sentence[0].split() if word not in stop])
 
 
 def remove_stopwords_df(df):
+    """remove stopwords from a dataframe"""
     return df.apply(remove_stopwords_sentence, axis=1)
 
 
 def stem_sentence(s):
+    """ stem sentence"""
     stemmer = EnglishStemmer()
     return pd.Series([stemmer.stem(w) for w in s if not pd.isna(w)])
 
@@ -60,14 +64,15 @@ def stem_sentence(s):
 def predict():
     if model:
         try:
+            # get the request
             json_ = request.json
-            print(json_)
+            
+            # tranform to a datafram
             df_query = pd.DataFrame(json_)
-            #print(df_query)
+           
             
             punctuation = string.punctuation
-            
-            
+                        
             # body and title pipeline
             body_pipeline = Pipeline(steps=[
                 ('remove html tags', FunctionTransformer(pd.DataFrame.replace,
@@ -79,19 +84,22 @@ def predict():
                 ('stemming', FunctionTransformer(pd.DataFrame.apply, kw_args={
                  'func': stem_sentence, 'axis': 1}, validate=False)),
                 ('imputer', SimpleImputer(strategy='constant', fill_value='')),
-                #('vectorizer', CountVectorizer(lowercase=False,analyzer='word', preprocessor=None, tokenizer=lambda i:i ))
-            ])
+               ])
                         
-            
+            # apply the preprocessor on the request data
             df_proc = body_pipeline.fit_transform(df_query.Title.to_frame())
-            print(type(df_proc))
-            #df_proc = pipeline.transform(df_query.Title.to_frame())
+           
+            
+            # apply the TF IDF vectorizer
             tfidf = vectorizer.transform(df_proc)
-            print(type(tfidf))
+            
+            # get the preiction from the model
             prediction = model.predict(tfidf)
             
+            # transform the binary predictions to labels
             prediction_tags = list(mlb.inverse_transform(prediction))
-
+            
+            # send the response
             return jsonify({'prediction': str(prediction_tags)})
 
         except:
@@ -103,18 +111,17 @@ def predict():
 
 if __name__ == '__main__':
 
-    #model = joblib.load('C:/Users/elodi/Documents/model.pkl')
-    print('begin')
+    # load the model
     with open('C:/Users/elodi/Documents/model.pkl', 'rb') as model_file :
         model  = dill.load( model_file)
     print ('Model loaded')
     
-    with open('C:/Users/elodi/Documents/pipeline.pkl', 'rb') as pipeline_file :
-        pipeline  = dill.load( pipeline_file)
-    
+    #with open('C:/Users/elodi/Documents/pipeline.pkl', 'rb') as pipeline_file :
+        #pipeline  = dill.load( pipeline_file)
+    # load the tfidf vectorizer
     with open('C:/Users/elodi/Documents/vectorizer.pkl', 'rb') as vect_file :
         vectorizer  = dill.load( vect_file)
-        
+    # load the MUltiLabelBinarizer    
     with open('C:/Users/elodi/Documents/mlb.pkl', 'rb') as mlb_file :
         mlb  = dill.load( mlb_file)
     
